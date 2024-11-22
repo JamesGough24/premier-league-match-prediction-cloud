@@ -102,57 +102,32 @@ def find_matches(league: str, season: str, gameweek: int):
             if href:
                 match_links.append(href)
 
-    print(match_links)
-
     driver.quit()
 
     return match_links
 
-find_matches("premier-league", "2024/2025", 7)
+def scrape_match(url: str):
+    service = Service(executable_path="/Users/jamesgough/Documents/OtherMLwork/Match_Prediction_Project/src/utils/chromedriver")
+    driver = webdriver.Chrome(service=service)
+    driver.get(url)
 
-    # if season == "2021-22":
-    #     if league == "bundesliga":
-    #         return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?group=by-round&round={str(gameweek)}&season={season}"
-    #     if league == "serie":
-    #         return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?season={season}&group=by-round&round={str(gameweek)}"
-    #     return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?group=by-round&season={season}&round={str(gameweek)}"
+    WebDriverWait(driver, 5).until(
+        EC.presence_of_element_located((By.XPATH, '//button[contains(text(), "Stats")]'))
+    )
+
+    stats_page_button = driver.find_element(By.XPATH, '//button[contains(text(), "Stats")]')
+    stats_page_button.click()
+
+    soup = BeautifulSoup(driver.page_source, "html.parser")
     
-    # if season == "2022-23":
-    #     if league == "serie":
-    #         return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?group=by-round&season={season}&round={str(gameweek)}"
-    #     return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?season={season}&group=by-round&round={str(gameweek)}"
-    
-    # if season == "2023-24":
-    #     if league == "premier-league":
-    #         return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?group=by-round&round={str(gameweek)}&season={season}"
-    #     if league == "serie":
-    #         return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?group=by-round&season={season}&round={str(gameweek)}"
-    #     return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}?season={season}&group=by-round&round={str(gameweek)}"
 
+    driver.quit()
+    return
 
-# def scrape_matches(league: str, season: str, gameweek: int):
-#     url = find_url(league, season, gameweek)
+def scrape_matches(league: str, season: str, gameweek: int):
+    match_links = find_matches(league, season, gameweek)
 
-#     print(url)
-
-#     response = requests.get(url)
-
-#     if response.status_code != 200:
-#         print("Error! Invalid Status Code!")
-
-#     soup = BeautifulSoup(response.content, "html.parser")
-
-#     dates = soup.select_one('h1[style="position:absolute;left:-9999px"]')
-
-#     print(dates)
-
-#     match_list = soup.select('section[class="css-3v2ydy-LeagueMatchesSectionCSS e1qa64rr0"] a')
-
-#     print(match_list)
-
-#     matches = [match.attrs['href'] for match in match_list]
-
-#     print(matches)
-    
-# scrape_matches("laliga", "2022-23", 34)
+    for match in match_links:
+        match_data = scrape_match(match)
+    return
 
