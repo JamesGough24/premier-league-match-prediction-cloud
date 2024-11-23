@@ -7,7 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 import time
 from bs4 import BeautifulSoup
-
+from datetime import datetime
 
 
 def find_url(league: str):
@@ -120,23 +120,59 @@ def scrape_match(url: str):
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    # home_npxg, away_npxg = scrape_stat("Non-penalty xG", soup)
-    # away_npxga = home_npxg
-    # home_npxga = away_npxg
+    # MATCH DATE AND TIME
+    match_date, match_time = scrape_match_date_time(soup)
 
-    # home_bcc, away_bcc = scrape_stat("Big chances", soup)
-    # away_bca = home_bcc
-    # home_bca = away_bcc
+    # TEAM NAMES
+    home_team = soup.select_one(".css-12r3z1-TeamName span.css-dpbuul-TeamNameItself-TeamNameOnTabletUp").text.strip()
+    away_team = soup.select_one(".css-4nnvmn-TeamName span.css-dpbuul-TeamNameItself-TeamNameOnTabletUp").text.strip()
 
-    # home_xg, away_xg = scrape_stat("Expected goals (xG)", soup)
-    # home_xgot, away_xgot = scrape_stat("xG on target (xGOT)", soup)
+    # MATCH RESULT & TEAM GOAL DIFFERENCE
+    match_result = soup.select_one(".css-ktw5ic-MFHeaderStatusScore").text.strip()
 
-    # print(f"home_xg = {home_xg}")
-    # print(f"away_xg = {away_xg}")
+    home_team_GF = int(match_result.split(" - ")[0])
+    away_team_GF = int(match_result.split(" - ")[1])
 
-    scrape_head_2_head(driver, soup)
+    home_team_GA = away_team_GF
+    away_team_GA = home_team_GF
+
+    result_home_win = 0
+    result_away_win = 0
+    result_draw = 0
+
+    if home_team_GF > away_team_GF:
+        result_home_win = 1
+    elif home_team_GF < away_team_GF:
+        result_away_win = 1
+    else:
+        result_draw = 1
+
+    home_team_GD = home_team_GF - home_team_GA
+    away_team_GD = away_team_GF - away_team_GA
+
+    # MATCH NPXG TOTALS
+    home_npxg, away_npxg = scrape_stat("Non-penalty xG", soup)
+    home_npxgd = home_npxg - away_npxg
+    away_npxgd = away_npxg - home_npxg
+
+    # MATCH BIG CHANCE TOTALS
+    home_bcc, away_bcc = scrape_stat("Big chances", soup)
+    home_bcd = home_bcc - away_bcc
+    away_bcd = away_bcc - home_bcc
+
+    # MATCH FINISHING QUALITY TOTALS
+    home_xg, away_xg = scrape_stat("Expected goals (xG)", soup)
+    home_xgot, away_xgot = scrape_stat("xG on target (xGOT)", soup)
+
+    home_finishing_quality = home_xgot - home_xg
+    away_finishing_quality = away_xgot - away_xg
+
+    # HEAD-TO-HEAD MATCH HISTORY
+    h2h_home_win_pct, h2h_draw_pct, h2h_away_win_pct = scrape_head_2_head(driver)
 
     driver.quit()
+
+    # WHAT TO RETURN!!!!!!!
     return
 
 def scrape_stat(stat: str, soup: BeautifulSoup):
@@ -150,22 +186,29 @@ def scrape_stat(stat: str, soup: BeautifulSoup):
 
     return home_val, away_val
 
-def scrape_head_2_head(driver: webdriver.Chrome, soup: BeautifulSoup):
+def scrape_head_2_head(driver: webdriver.Chrome):
     WebDriverWait(driver, 5).until(
-        EC.presence_of_element_located((By.XPATH, '//button[contains(text(), "Head-to-Head")]'))
+        EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Head-to-Head')]"))
     )
 
-    head_2_head_page_button = driver.find_element(By.XPATH, '//button[contains(text(), "Head-to-Head")]')
+    head_2_head_page_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Head-to-Head')]")
     head_2_head_page_button.click()
 
     WebDriverWait(driver, 5).until(
-        EC.presence_of_element_located((By.XPATH, '//button[contains(text(), "Home")]'))
+        EC.presence_of_element_located((By.XPATH, "//button[contains(text(), 'Home')]"))
     )
 
-    home_team_button = driver.find_element(By.XPATH, '//button[contains(text(), "Home")]')
+    home_team_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Home')]")
     home_team_button.click()
 
-    head_2_head_div = soup.select(".css-1e2kjkx-H2hNumbers e3lka4k2")
+    time.sleep(1)
+
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    home_team_button = driver.find_element(By.XPATH, "//button[contains(text(), 'Home')]")
+    home_team_button.click()
+
+    head_2_head_div = soup.select(".css-18yfvdy-WinsContainer")
     print(head_2_head_div)
 
     home_wins = int(head_2_head_div[0].select_one("[class*='NumberOfWins'] span").text.strip())
@@ -178,17 +221,30 @@ def scrape_head_2_head(driver: webdriver.Chrome, soup: BeautifulSoup):
 
     total_meetings = home_wins + draws + away_wins
 
-    home_win_pct = home_wins / total_meetings
-    draw_pct = draws / total_meetings
-    away_win_pct = away_wins / total_meetings
+    home_win_pct = round(home_wins / total_meetings, 3)
+    draw_pct = round(draws / total_meetings, 3)
+    away_win_pct = round(away_wins / total_meetings, 3)
+
+    print(home_win_pct)
+    print(draw_pct)
+    print(away_win_pct)
 
     return home_win_pct, draw_pct, away_win_pct
+
+def scrape_match_date_time(soup: BeautifulSoup):
+    match_date_time_string = soup.find("h1", style_="position: absolute; left: -9999px;").text.strip().split("(")[1].split("T")
+    match_date_string = match_date_time_string[0]
+    match_time_string = match_date_time_string[1].split(".")[0]
+
+    match_date = datetime.strptime(match_date_string, '%Y-%m-%d').date()
+    match_time = datetime.strptime(match_time_string, '%H:%M:%S').time()
+
+    return match_date, match_time
 
 def scrape_matches(league: str, season: str, gameweek: int):
     match_links = find_matches(league, season, gameweek)
 
     for match in match_links:
         match_data = scrape_match(match)
+        # HOW TO TRANSFORM/WORK WITH VALUES SCRAPED??????
     return
-
-scrape_match("https://www.fotmob.com/matches/osasuna-vs-real-madrid/2e2ylz#4506882:tab=stats")
