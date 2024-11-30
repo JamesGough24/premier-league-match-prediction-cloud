@@ -168,8 +168,7 @@ def scrape_match(url: str):
     # MATCH FINISHING QUALITY TOTALS
     home_xg, away_xg = scrape_stat("Expected goals (xG)", soup)
     home_xgot, away_xgot = scrape_stat("xG on target (xGOT)", soup)
-
-
+    
     home_finish_quality = home_xgot - home_xg
     away_finish_quality = away_xgot - away_xg
 
