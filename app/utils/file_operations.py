@@ -3,7 +3,7 @@ from io import StringIO
 
 def save_data_to_csv(data, filename="match_data.csv"):
     # Get the keys from the first match to set as CSV headers 
-    keys = data[0].keys
+    keys = data[0].keys()
 
     # Create an in-memory buffer
     csv_buffer = StringIO()
@@ -16,5 +16,6 @@ def save_data_to_csv(data, filename="match_data.csv"):
     # Reset the buffer's back to the start 
     csv_buffer.seek(0)
 
-    return csv_buffer
+    # Convert the buffer into bytes, the format expected by S3
+    return csv_buffer.getvalue().encode('utf-8')
     

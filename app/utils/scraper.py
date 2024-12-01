@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -10,6 +11,18 @@ import time
 from bs4 import BeautifulSoup
 from datetime import datetime
 
+def get_headless_driver():
+    # Specify Chrome options for headless operation
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--no-sandbox")  # Required for Lambda environments
+    chrome_options.add_argument("--disable-dev-shm-usage")  # Avoid shared memory issues
+    chrome_options.add_argument("--disable-gpu")  # Disable GPU rendering
+    chrome_options.add_argument("--window-size=1920,1080")  # Set window size for headless rendering
+
+    service = Service("/Users/jamesgough/Documents/OtherMLwork/Match_Prediction_Project/app/utils/chromedriver")
+
+    return webdriver.Chrome(service=service, options=chrome_options)
 
 def find_url(league: str):
     league_code = {
@@ -22,9 +35,8 @@ def find_url(league: str):
 
     return f"https://www.fotmob.com/leagues/{league_code[league]}/matches/{league}"
 
-def find_matches(league: str, season: str, gameweek: int):
-    service = Service(executable_path="/Users/jamesgough/Documents/OtherMLwork/Match_Prediction_Project/app/utils/chromedriver")
-    driver = webdriver.Chrome(service=service)
+def find_matches(league: str, season: str, gameweek: str):
+    driver = get_headless_driver()
     driver.get(find_url(league))
 
     # By Round
@@ -85,7 +97,7 @@ def find_matches(league: str, season: str, gameweek: int):
 
     round_dropdown = driver.find_element(By.CLASS_NAME, f"css-{round_class_code[league][season]}-Select.e1nudmbp0")
     selection = Select(round_dropdown)
-    selection.select_by_visible_text("Round " + str(gameweek))
+    selection.select_by_visible_text("Round " + gameweek)
     round_dropdown.click()
 
     # Find Matches
@@ -105,13 +117,10 @@ def find_matches(league: str, season: str, gameweek: int):
 
     driver.quit()
 
-    print(match_links)
-
     return match_links
 
 def scrape_match(url: str):
-    service = Service(executable_path="/Users/jamesgough/Documents/OtherMLwork/Match_Prediction_Project/app/utils/chromedriver")
-    driver = webdriver.Chrome(service=service)
+    driver = get_headless_driver()
     driver.get(url)
 
     WebDriverWait(driver, 5).until(
@@ -179,30 +188,8 @@ def scrape_match(url: str):
 
     driver.quit()
 
-    # print(f"home_team = {home_team}")
-    # print(f"away_team = {away_team}")
-    # print(f"match_date = {match_date}")
-    # print(f"match_time = {match_time}")
-    # print(f"result_home_win = {result_home_win}")
-    # print(f"result_away_win = {result_away_win}")
-    # print(f"result_draw = {result_draw}")
-    # print(f"h2h_home_win_pct = {h2h_home_win_pct}")
-    # print(f"h2h_draw_pct = {h2h_draw_pct}")
-    # print(f"h2h_away_win_pct = {h2h_away_win_pct}")
-    # print(f"home_GF = {home_GF}")
-    # print(f"home_GA = {home_GA}")
-    # print(f"away_GF = {away_GF}")
-    # print(f"away_GA = {away_GA}")
-    # print(f"home_npxg = {home_npxg}")
-    # print(f"away_npxg = {away_npxg}")
-    # print(f"home_bcc = {home_bcc}")
-    # print(f"away_bcc = {away_bcc}")
-    # print(f"home_xg = {home_xg}")
-    # print(f"away_xg = {away_xg}")
-    # print(f"home_xgot = {home_xgot}")
-    # print(f"away_xgot = {away_xgot}")
+    print(f"Finished scraping: {home_team} v {away_team}\n")
 
-    # WHAT TO RETURN!!!!!!!
     return {
         "home_team": home_team,
         "away_team": away_team,
@@ -286,22 +273,8 @@ def scrape_match_date_time(soup: BeautifulSoup):
 
     return match_date, match_time
 
-def scrape_matches(league: str, season: str, gameweek: int):
-    match_links = find_matches(league, season, gameweek)
-    time.sleep(5)
-    match_data = []
-
-    for match in match_links:
-        match_data.append(scrape_match(match))
-    
-    print(match_data)
-
-    return match_data
-
-
 def test_datetime_scrape(url: str):
-    service = Service(executable_path="/Users/jamesgough/Documents/OtherMLwork/Match_Prediction_Project/app/utils/chromedriver")
-    driver = webdriver.Chrome(service=service)
+    driver = get_headless_driver()
     driver.get(url)
 
     WebDriverWait(driver, 5).until(
@@ -317,6 +290,15 @@ def test_datetime_scrape(url: str):
 
     match_date, match_time = scrape_match_date_time(soup)
 
-    print(f"match_date = {match_date}")
-    print(f"match_time = {match_time}")
 
+def scrape_matches(league: str, season: str, gameweek: str):
+    match_links = find_matches(league, season, gameweek)
+    time.sleep(5)
+    match_data = []
+
+    for match in match_links:
+        match_data.append(scrape_match(match))
+    
+    print("Finished appending all match data")
+
+    return match_data
